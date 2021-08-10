@@ -100,11 +100,10 @@ class BYOLHook(ClassyHook):
         Update the momentum coefficient based on the task config.
         """
         if self.total_iters is None:
+
             self.total_iters = task.max_iteration
-            logging.info(f"{self.total_iters} total iters")
-
+            logging.info(f"{self.total_iters} total iters") 
         training_iteration = task.iteration
-
         self.momentum = self.target_ema(training_iteration, self.base_momentum, self.total_iters)
 
     @torch.no_grad()
