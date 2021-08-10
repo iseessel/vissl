@@ -73,7 +73,7 @@ def download_google_drive_url(url: str, output_path: str, output_file_name: str)
 
         # Then download the content of the file
         with session.get(url, stream=True, verify=True) as response:
-            makedir(output_path)
+            os.makedirs(output_path, exist_ok=True)
             path = os.path.join(output_path, output_file_name)
             total_size = int(response.headers.get("Content-length", 0))
             with open(path, "wb") as file:
@@ -85,7 +85,6 @@ def download_google_drive_url(url: str, output_path: str, output_file_name: str)
                     ):
                         file.write(block)
                         progress_bar.update(len(block))
-
 
 # The following methods are copied from torchvision, but we use PathManager
 # instead of `os` lib to support multiple distributed file systems.
@@ -189,3 +188,4 @@ def download_and_extract_archive(
     archive = os.path.join(download_root, filename)
     print("Extracting {} to {}".format(archive, extract_root))
     extract_archive(archive, extract_root, remove_finished)
+>>>>>>> f054707d517ce62caf80d0e13163f36ebf4ca53f

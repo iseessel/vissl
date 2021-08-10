@@ -6,7 +6,6 @@
 import argparse
 import os
 import shutil
-
 from tqdm import tqdm
 from vissl.utils.download import download_and_extract_archive
 from vissl.utils.io import cleanup_dir
