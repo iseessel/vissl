@@ -54,6 +54,7 @@ config:
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/imagenet1k/
       DROP_LAST: True
+      USE_DEBUGGING_SAMPLER: False
   TRAINER:
     TRAIN_STEP_NAME: standard_train_step
   METERS:
@@ -66,10 +67,8 @@ config:
         ZERO_INIT_RESIDUAL: True
     HEAD:
       PARAMS: [
-        ["mlp", {"dims": [2048, 4096], "use_relu": True, "use_bn": True}],
-        ["mlp", {"dims": [4096, 256]}],
-        ["mlp", {"dims": [256, 4096], "use_relu": True, "use_bn": True}],
-        ["mlp", {"dims": [4096, 256]}],
+        ["mlp", {"dims": [2048, 4096, 256], "use_relu": True, "use_bn": True}],
+        ["mlp", {"dims": [256, 4096, 256], "use_relu": True, "use_bn": True}]
       ]
     SYNC_BN_CONFIG:
       CONVERT_BN_TO_SYNC_BN: True
@@ -99,7 +98,7 @@ config:
           name: composite
           schedulers:
             - name: linear
-              start_value: 0.0
+              start_value: 0.00001
               end_value: 0.3 # Automatically rescaled if needed
             - name: cosine
               start_value: 0.3 # Automatically rescaled if needed
