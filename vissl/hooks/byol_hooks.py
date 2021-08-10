@@ -98,7 +98,7 @@ class BYOLHook(ClassyHook):
         if self.total_iters is None:
             num_epochs = task.config['OPTIMIZER']['num_epochs']
             dataset = task.datasets['train']
-            iters_per_epoch = int(dataset.num_samples()/dataset.get_global_batchsize())
+            iters_per_epoch = int(len(self.dataloaders[phase_type]))
             self.total_iters = num_epochs*iters_per_epoch
 
         current_iter = task.iteration
