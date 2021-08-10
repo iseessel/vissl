@@ -85,9 +85,6 @@ def download_google_drive_url(url: str, output_path: str, output_file_name: str)
                     ):
                         file.write(block)
                         progress_bar.update(len(block))
-<<<<<<< HEAD
-=======
-
 
 # The following methods are copied from torchvision, but we use PathManager
 # instead of `os` lib to support multiple distributed file systems.
