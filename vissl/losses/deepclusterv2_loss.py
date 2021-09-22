@@ -45,6 +45,7 @@ class DeepClusterV2Loss(ClassyLoss):
 
         self.loss_config = loss_config
         size_dataset = self.loss_config.num_train_samples
+
         size_memory_per_process = int(math.ceil(size_dataset * 1.0 / get_world_size()))
 
         if self.loss_config.DROP_LAST:
@@ -73,6 +74,9 @@ class DeepClusterV2Loss(ClassyLoss):
         self.register_buffer(
             "assignments", -100 * torch.ones(self.nmb_heads, size_dataset).long()
         )
+        self.register_buffer(
+            "indexes", -100 * torch.ones(self.nmb_heads, size_dataset).long()
+        )
         for i, k in enumerate(self.loss_config.num_clusters):
             self.register_buffer(
                 "centroids" + str(i), torch.rand(k, self.embedding_dim)
@@ -95,8 +99,8 @@ class DeepClusterV2Loss(ClassyLoss):
 
     def forward(self, output: torch.Tensor, idx: int):
         output = nn.functional.normalize(output, dim=1, p=2)
-
         loss = 0
+
         for i in range(self.nmb_heads):
             scores = (
                 torch.mm(output, getattr(self, "centroids" + str(i)).t())
@@ -106,7 +110,6 @@ class DeepClusterV2Loss(ClassyLoss):
         loss /= self.nmb_heads
 
         self.update_memory_bank(output, idx)
-
         return loss
 
     def init_memory(self, dataloader, model):
@@ -158,6 +161,7 @@ class DeepClusterV2Loss(ClassyLoss):
                     random_idx = torch.randperm(len(self.local_memory_embeddings[j]))[
                         :K
                     ]
+
                     assert len(random_idx) >= K, "please reduce the number of centroids"
                     centroids = self.local_memory_embeddings[j][random_idx]
                 dist.broadcast(centroids, 0)
@@ -187,7 +191,9 @@ class DeepClusterV2Loss(ClassyLoss):
                                 dim=0,
                             )
                             counts[k] = len(where_helper[k][0])
-                    all_reduce_sum(counts)
+
+
+                    all_reduce_sum(counts) #performing sum reduction of tensor over all processes
                     mask = counts > 0
                     all_reduce_sum(emb_sums)
                     centroids[mask] = emb_sums[mask] / counts[mask].unsqueeze(1)
@@ -199,10 +205,17 @@ class DeepClusterV2Loss(ClassyLoss):
                 # gather the assignments
                 assignments_all = gather_from_all(assignments)
                 indexes_all = gather_from_all(self.local_memory_index)
+
                 self.assignments[i_K] = -100
+                self.indexes[i_K] = -100
+
+                self.indexes[i_K][indexes_all] = indexes_all
                 self.assignments[i_K][indexes_all] = assignments_all
 
                 j = (j + 1) % self.nmb_mbs
+
+            torch.save(self.assignments,"/private/home/iseessel/assignments_crops_mb.pt")
+            torch.save(self.indexes,"/private/home/iseessel/indexes_crops_mb.pt")
 
         logging.info(f"Rank: {get_rank()}, clustering of the memory bank done")
 

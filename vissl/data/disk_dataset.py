@@ -83,6 +83,10 @@ class DiskImageDataset(QueueDataset):
                 self.image_dataset = load_file(path)
         elif self.data_source == "disk_folder":
             self.image_dataset = ImageFolder(path)
+
+            from vissl.utils.io import save_file
+            save_file(self.image_dataset.samples, "/private/home/iseessel/samples.npy")
+
             logging.info(f"Loaded {len(self.image_dataset)} samples from folder {path}")
 
             # mark as initialized.
@@ -130,6 +134,8 @@ class DiskImageDataset(QueueDataset):
           not full. Otherwise return a valid seen image from the queue if queue is
           not empty.
         """
+        import logging
+        logging.info(f"Dataset idx: {idx}")
         if not self.is_initialized:
             self._load_data(self._path)
             self.is_initialized = True
