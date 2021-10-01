@@ -7,6 +7,7 @@ import logging
 import unittest
 
 import pkg_resources
+import torch
 from parameterized import parameterized
 from utils import UNIT_TEST_CONFIGS, SSLHydraConfig
 from vissl.engines.train import train_main
@@ -39,6 +40,8 @@ class TaskTest(unittest.TestCase):
         ]
 
         # run training and make sure no exception is raised
+        torch.distributed.destroy_process_group()
+
         dist_run_id = get_dist_run_id(config, config.DISTRIBUTED.NUM_NODES)
         train_main(
             config,

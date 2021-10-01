@@ -46,7 +46,7 @@ test:
     - opencv
     - tensorboard
   commands:
-    - python -m unittest discover -v -s tests
+    - python -m unittest discover -v -s tests --failfast
     - ./dev/run_quick_tests.sh
 
 build:
