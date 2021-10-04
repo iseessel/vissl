@@ -19,8 +19,14 @@ from vissl.hooks import default_hook_generator
 from vissl.utils.distributed_launcher import launch_distributed
 
 
+
 @contextmanager
 def in_temporary_directory(enabled: bool = True):
+    """
+    Context manager to create a temporary direction and remove
+    it at the end of the context
+    """
+
     """
     Context manager to create a temporary direction and remove
     it at the end of the context
@@ -29,8 +35,10 @@ def in_temporary_directory(enabled: bool = True):
         old_cwd = os.getcwd()
         with tempfile.TemporaryDirectory() as temp_dir:
             os.chdir(temp_dir)
-            yield temp_dir
-            os.chdir(old_cwd)
+            try:
+                yield temp_dir
+            finally:
+                os.chdir(old_cwd)
     else:
         yield os.getcwd()
 
