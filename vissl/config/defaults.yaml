@@ -1,4 +1,7 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# Copyright (c) Facebook, Inc. and its affiliates.
+
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
 
 ######################### How to use Hydra configs ###################################
 # VISSL uses hydra for configuration management. The usage looks like:
@@ -61,24 +64,134 @@ config:
   LOG_FREQUENCY: 10
   # if the workflow is only test and not training
   TEST_ONLY: False
+  # if the model should be test as well. If set to False, only training will be done.
+  TEST_MODEL: True
   # how frequently should the validation be done.
   # 1 = after every epoch and N = after every N epochs
   TEST_EVERY_NUM_EPOCH: 1
   SEED_VALUE: 0
-  # if the model should be test as well. If set to False, only training will be done.
-  TEST_MODEL: True
   # Use the forkserver or spawn
   # https://github.com/pytorch/pytorch/blob/master/torch/nn/parallel/distributed.py#L142
   MULTI_PROCESSING_METHOD: "forkserver"
-  # monitoring training statistics like: forward time, backward time, loss time, etc
-  MONITOR_PERF_STATS: False
-  # we print perf stats (if enabled) after every phase. If we want to print every few
-  # batches, set the frequency here.
-  PERF_STAT_FREQUENCY: -1
-  # if we want to print the rolling average batch time, set the value below to number of
-  # training iterations over which we want to print average. The average is printed for
-  # master gpu.
-  ROLLING_BTIME_FREQ: -1
+
+  # Debugging utilities
+  REPRODUCIBILITY:
+    CUDDN_DETERMINISTIC: False
+
+  # ----------------------------------------------------------------------------------- #
+  # HOOKS
+  # ----------------------------------------------------------------------------------- #
+  HOOKS:
+    # ----------------------------------------------------------------------------------- #
+    # Perf hooks for several steps of model training
+    # ----------------------------------------------------------------------------------- #
+    PERF_STATS:
+      # monitoring training statistics like: forward time, backward time, loss time, etc
+      MONITOR_PERF_STATS: False
+      # we print perf stats (if enabled) after every phase. If we want to print every few
+      # batches, set the frequency here.
+      PERF_STAT_FREQUENCY: -1
+      # if we want to print the rolling average batch time, set the value below to number of
+      # training iterations over which we want to print average. The average is printed for
+      # master gpu.
+      ROLLING_BTIME_FREQ: -1
+
+    # ----------------------------------------------------------------------------------- #
+    # torch.cuda.memory_summary()
+    # ----------------------------------------------------------------------------------- #
+    MEMORY_SUMMARY:
+      # set this to true if you want to print memory summary. useful for profiling
+      # memory consumption of model
+      PRINT_MEMORY_SUMMARY: True
+      # at what iteration number should the memory summary be printed. usually
+      # set to 1 for very large models
+      LOG_ITERATION_NUM: 0
+      # set this to true if you want to print the tensor residing in memory
+      # in event of an exception (such as out of memory exception)
+      DUMP_MEMORY_ON_EXCEPTION: False
+
+    # ----------------------------------------------------------------------------------- #
+    # nvidia-smi print
+    # ----------------------------------------------------------------------------------- #
+    # whether to log nvidia-smi or not. we make it optional in case nvidia-smi is not
+    # valid for some systems.
+    LOG_GPU_STATS: True
+
+    # ----------------------------------------------------------------------------------- #
+    # MODEL_COMPLEXITY (#flops, #params, #activations in your model)
+    # ----------------------------------------------------------------------------------- #
+    MODEL_COMPLEXITY:
+      # set this to True if you want to compute #flops, #params, #activations in your model.
+      COMPUTE_COMPLEXITY: False
+      # the dummy input shape passed to the model to compute the complexity. Only forward pass
+      # is done for complexity calculation.
+      INPUT_SHAPE: [3, 224, 224]
+
+    # ----------------------------------------------------------------------------------- #
+    # TENSORBOARD (visualization)
+    # ----------------------------------------------------------------------------------- #
+    TENSORBOARD_SETUP:
+      # whether to use tensorboard for the visualization
+      USE_TENSORBOARD: False
+      # log directory for tensorboard events
+      LOG_DIR: "."
+      EXPERIMENT_LOG_DIR: "tensorboard"
+      # flush logs every n minutes
+      FLUSH_EVERY_N_MIN: 5
+      # whether to log the model parameters to tensorboard
+      LOG_PARAMS: True
+      # whether to log the model parameters gradients to tensorboard
+      LOG_PARAMS_GRADIENTS: True
+      # if we want to log the model parameters every few iterations, set the iteration
+      # frequency. -1 means the params will be logged only at the end of epochs.
+      LOG_PARAMS_EVERY_N_ITERS: 310
+
+  # ----------------------------------------------------------------------------------- #
+  # MONITORING
+  # ----------------------------------------------------------------------------------- #
+  MONITORING:
+    # At which frequency do we monitor statistics on the activations:
+    # - 0 means that we do not monitor statistics
+    # - N > 0 means we monitor every N iterations
+    MONITOR_ACTIVATION_STATISTICS: 0
+
+  # ----------------------------------------------------------------------------------- #
+  # PROFILING
+  # ----------------------------------------------------------------------------------- #
+  PROFILING:
+    # How many iterations do we wait before starting the profiler
+    START_ITERATION: 0
+    # How any iterations does the profiler run while not collecting outputs
+    # Data will start to be collected after START_ITERATION + WARMUP_ITERATIONS
+    WARMUP_ITERATIONS: 0
+    # How many iterations do we run the profiler for: after this number
+    # of iteration is reached the profiling is disabled
+    NUM_ITERATIONS: 10
+    # Whether or not to interrupt the training after reaching the last
+    # profiling iteration (after the profiling is done)
+    STOP_TRAINING_AFTER_PROFILING: False
+    # Folder where the traces will be generated
+    OUTPUT_FOLDER: "."
+    # Ranks on which the profiling will be performed
+    # The rank is the index of the GPU in the overall distributed training
+    PROFILED_RANKS: [0, 1]
+    # The available memory profiling options
+    MEMORY_PROFILING:
+      # Track the memory usage through the forward/backward pass, and outputs
+      # the traces complemented by estimations of the memory usage due to
+      # activations and associated activation gradients
+      TRACK_BY_LAYER_MEMORY: False
+    # The available options for the runtime profiler
+    RUNTIME_PROFILING:
+      # To enable the runtime profiler
+      USE_PROFILER: False
+      # Whether or not to profile the CPU activities
+      PROFILE_CPU: True
+      # Whether or not to profile the GPU activities
+      PROFILE_GPU: True
+      # To force the use of the legacy autograd profiler even if
+      # the new pytorch profiler based on kineto is available
+      LEGACY_PROFILER: False
 
   # ----------------------------------------------------------------------------------- #
   # DATA
@@ -93,11 +206,22 @@ config:
     DDP_BUCKET_CAP_MB: 25
     # Training Data Options
     TRAIN:
+      # A sampler that cuts the dataset in a deterministic way
+      USE_DEBUGGING_SAMPLER: False
+
       # if we want to resume the data sampler as well from a previous iteration. By default
       # pytorch sampler resumes from every epoch.
       USE_STATEFUL_DISTRIBUTED_SAMPLER: False
       # whether to drop the last incomplete batch per process
       DROP_LAST: False
+      # if users want to replace certain prefixes from the image paths and replace them with
+      # some other prefix, they can do so here.
+      REMOVE_IMG_PATH_PREFIX: ""
+      # what prefix to replace the old prefix with. Could stay empty too
+      NEW_IMG_PATH_PREFIX: ""
+      # Base dataset to use to wrap the datasets defined. The default and only current oss supported
+      # default is the generic_ssl_dataset.
+      BASE_DATASET: "generic_ssl"
       # name of the dataset. Meaningful and used to do lookup in the dataset_catalog.json
       # it has the advantage that user needs to full the dataset_catalog.json once
       # and then simply use the dataset name without having to specify data paths every time.
@@ -110,10 +234,19 @@ config:
       DATA_PATHS: []
       LABEL_SOURCES: []
       LABEL_PATHS: []
-      # either standard | sample_index
+      # either standard | sample_index | zero
       # sample_index is a common practice in self-supervised learning and sample_index = id of the
       # sample in the data.
       # standard label type is used for supervised learning and user specifis the labels to use.
+      # zero sets all labels to 0, which is necessary when using necessary
+      # when cutmixup_collator is being used for self-supervised training.
+      # Note that if LABEL_SOURCES (see above) is provided, it will override
+      # LABEL_TYPE. For example, if SSL training on a labeled dataset (e.g
+      # ImageNet imagefolders) and
+      # LABEL_SOURCES: [DISK_FOLDER]
+      # LABEL_TYPE: "zero"
+      # the label type will not be zero, but the label associated with the
+      # image folder.
       LABEL_TYPE: "standard"
       # whether to memory map the input data.
       MMAP_MODE: True
@@ -124,13 +257,90 @@ config:
       # number of unique samples in minibatch per gpu (or per device)
       BATCHSIZE_PER_REPLICA: 256
       # list of data transforms to apply on the data
+      # Example: using RandAugment (https://arxiv.org/abs/1909.13719)
+      # :param magnitude: integer magnitude of rand augment
+      # :param magnitude_std: standard deviation of magnitude. If > 0,
+      # introduces random variability in the augmentation magnitude.
+      # :param num_layers: integer number of transforms
+      # :param increasing_severity: boolean that indicates whether to use
+      # augmentations that increase severity w/ increasing magnitude. Some
+      # augmentations do this by default.
+      # :param choice_weights: Index of pre-determined probability distribution
+      # over augmentations. Currently only one such distribution available (i.e.
+      # no valid values other than 0 or None), unclear if beneficial. Default =
+      # None.
+      # TRANSFORMS:
+      #   - name: RandAugment
+      #     magnitude: 9
+      #     magnitude_std: 0.5
+      #     num_layers: 2
+      #     increasing_severity: True
+      #
+      #
+      # Example: using AutoAugment (https://arxiv.org/abs/1805.09501). This
+      # autoaugment differs from the torchvision implementation by allowing
+      # variability in the augmentation intensity.
+      # ":param policy_name: String. One of 'v0', 'v0r', 'original', 'originalr'.
+      # One of a set of learned augmentation sequences.
+      # :param magnitude_std: standard deviation of magnitude. If > 0, introduces
+      # random variability in the augmentation magnitude.
+      # TRANSFORMS:
+      #   - name: VisslAutoAugment
+      #     policy_name: v0
+      #     magnitude_std: 0
       TRANSFORMS: []
       # collator to use: either pytorch default or user defined custom collator.
+      # Using the cutmixup_collator in a supervised setting requires the use
+      # of the cross_entropy_multiple_output_single_target loss (see LOSS
+      # section below in order to accomodate label-smoothing. Using the
+      # cutmixup_collator in a self-supervised setting requires setting
+      # DATA.{TRAIN/TEST}.LABEL_TYPE: zero
       COLLATE_FUNCTION: "default_collate"
       # parameters taken by the collator function (if any).
       COLLATE_FUNCTION_PARAMS: {}
-      # limit the amount of data used in training. If set to -1, full dataset is used.
+      # Example: params for cutmixup_collator to implement CutMix and MixUp
+      # COLLATE_FUNCTION: "cutmixup_collator"
+      # COLLATE_FUNCTION_PARAMS: {
+      #   #  Adjust collator output to accomodate SSL method.
+      #   #  Currently supports "moco" or "simclr".
+      #   #  No argument needed if using vissl or supervised.
+      #  "ssl_method": "moco"
+      #  "mixup_alpha": 1.0, # mixup alpha value, mixup is active if > 0.
+      #  "cutmix_alpha": 0.0, # cutmix alpha value, cutmix is active if > 0.
+      #  "cutmix_minmax": None, # cutmix min/max image ratio, cutmix is active and uses this vs alpha if not None.
+      #  "prob": 1.0, # probability of applying mixup or cutmix per batch or element
+      #  "switch_prob": 0.5, # probability of switching to cutmix instead of mixup when both are active
+      #  "mode": "batch", # how to apply mixup/cutmix params (per 'batch', 'pair' (pair of elements), 'elem' (element)
+      #  "correct_lam": True, # apply lambda correction when cutmix bbox clipped by image borders
+      #  "label_smoothing": 0.1, # apply label smoothing to the mixed target tensor
+      #  "num_classes": 2 # number of classes for target. Labels aren't
+      #  actually used for SSL, so set to a small number to avoid shuffling
+      #  large vectors around unnecessarily.
+      # }
+      # Also note that using the CutMixUp collator in a supervised context
+      # requires using the cross_entropy_multiple_output_single_target to
+      # accomodate the smoothed labels. See
+      # LOSS.cross_entropy_multiple_output_single_target for more information.
+      #
+      # Limit the amount of data used in training. If set to -1, full dataset is used.
+      #
       DATA_LIMIT: -1
+      #
+      # Specifies how the DATA_LIMIT samples are sampled
+      #
+      # Example: to select a range of 500 samples for validation, skipping the first 1000 samples (say these are
+      # already used in the training split) and sub-sampling these elements such that each class appears equally:
+      # DATA_LIMIT: 500
+      # DATA_LIMIT_SAMPLING:
+      #   SEED: 0
+      #   IS_BALANCED: True
+      #   SKIP_NUM_SAMPLES: 1000
+      #
+      DATA_LIMIT_SAMPLING:
+        SEED: 0
+        IS_BALANCED: False
+        SKIP_NUM_SAMPLES: 0
+
       # whether the data specified (whether file list or directory) should be copied locally
       # on the machine where training is happening.
       COPY_TO_LOCAL_DISK: False
@@ -146,8 +356,15 @@ config:
       # QueueDataset, you can instead return a valid and previously seen image.
       ENABLE_QUEUE_DATASET: False
     TEST:
+      # A sampler that cuts the dataset in a deterministic way
+      USE_DEBUGGING_SAMPLER: False
       # if we want to resume the data sampler as well from a previous iteration
       USE_STATEFUL_DISTRIBUTED_SAMPLER: False
+      # if users want to replace certain prefixes from the image paths and replace them with
+      # some other prefix, they can do so here.
+      REMOVE_IMG_PATH_PREFIX: ""
+      # what prefix to replace the old prefix with. Could stay empty too
+      NEW_IMG_PATH_PREFIX: ""
       DROP_LAST: False
       DATA_SOURCES: []
       DATA_PATHS: []
@@ -160,6 +377,13 @@ config:
       COLLATE_FUNCTION: "default_collate"
       COLLATE_FUNCTION_PARAMS: {}
       DATA_LIMIT: -1
+      DATA_LIMIT_SAMPLING:
+        SEED: 0
+        IS_BALANCED: False
+        SKIP_NUM_SAMPLES: 0
+      # Base dataset to use to wrap the datasets defined. The default and only current oss supported
+      # default is the generic_ssl_dataset.
+      BASE_DATASET: "generic_ssl"
       DATASET_NAMES: ["imagenet1k_folder"]
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: ""
@@ -248,6 +472,9 @@ config:
     # we can optimize memory a bit by running forward pass through each crop
     # separately.
     SINGLE_PASS_EVERY_CROP: False
+    # ----------------------------------------------------------------------------------- #
+    # Activation checkpointing from PyTorch
+    # ----------------------------------------------------------------------------------- #
     # Use activation checkpointing in the training phase. This is very for training
     # large models that require a lot of memory.
     ACTIVATION_CHECKPOINTING:
@@ -255,6 +482,36 @@ config:
       # how many times the model should be checkpointed. User should tune this parameter
       # and find the number that offers best memory saving and compute tradeoff.
       NUM_ACTIVATION_CHECKPOINTING_SPLITS: 2
+    # ----------------------------------------------------------------------------------- #
+    # ZeRO2 sharded DDP from Fairscale https://github.com/facebookresearch/fairscale
+    # ----------------------------------------------------------------------------------- #
+    SHARDED_DDP_SETUP:
+      # set this to true if you want to use SDP instead of DDP.
+      # VISSL will automatically set optimizer = zero and
+      # configure the settings required to run SDP successfully.
+      USE_SDP: False
+      reduce_buffer_size: -1
+    # ----------------------------------------------------------------------------------- #
+    # FSDP from Fairscale https://github.com/facebookresearch/fairscale
+    #   These options should match FSDP classes init options.
+    # ----------------------------------------------------------------------------------- #
+    FSDP_CONFIG:
+      # set this option to True to enable FSDP and automatically determine the config
+      # for FSDP based on AMP true/false.
+      AUTO_SETUP_FSDP: False
+      # Set this option to a positive number to automatically wrap "big" layers with
+      # a dedicated FSDP wrapping: the number provided here is the number of
+      # parameters that serves as threshold to decide if a layer is "big"
+      AUTO_WRAP_THRESHOLD: 0
+      AMP_TYPE: "01"
+      # Parameters of fairscale FSDP
+      flatten_parameters: True
+      mixed_precision: True
+      fp32_reduce_scatter: False  # Only makes sense to be True when mixed_precision is True.
+      compute_dtype: float32  # Choose "float32" or "float16"
+      bucket_cap_mb: 0
+      clear_autocast_cache: True
+      verbose: True
     # ----------------------------------------------------------------------------------- #
     # Feature evaluation settings
     # ----------------------------------------------------------------------------------- #
@@ -288,37 +545,109 @@ config:
       #       ]
       LINEAR_EVAL_FEAT_POOL_OPS_MAP: []
     # ----------------------------------------------------------------------------------- #
+    # GRADIENT CLIPPING. Used by Dosovitskiy et al. in their  Vision
+    # Transformer paper.
+    # ----------------------------------------------------------------------------------- #
+    GRAD_CLIP: # See TORCH.NN.UTILS.CLIP_GRAD_NORM_
+      USE_GRAD_CLIP: False
+      NORM_TYPE: 2 # Float, int, or 'inf'
+      MAX_NORM: 1
+    # ----------------------------------------------------------------------------------- #
     # MODEL TRUNK
     # ----------------------------------------------------------------------------------- #
     TRUNK:
       NAME: "resnet"
-      # for any extra params that the model requires, pass them in the trunk_params
-      TRUNK_PARAMS:
-        # ------------------------------------------------------------- #
-        # ResNe(X)t params
-        # ------------------------------------------------------------- #
-        RESNETS:
-          DEPTH: 50
-          WIDTH_MULTIPLIER: 1
-          NORM: BatchNorm    # BatchNorm | LayerNorm
-          GROUPS: 1
-          ZERO_INIT_RESIDUAL: False
-          WIDTH_PER_GROUP: 64
-          # Colorization model uses stride=1 for last layer to retain higher spatial resolution
-          # for the pixel-wise task. Torchvision default is stride=2 and all other models
-          # use this so we set the default as 2.
-          LAYER4_STRIDE: 2
+      # ------------------------------------------------------------- #
+      # ResNe(X)t params
+      # ------------------------------------------------------------- #
+      RESNETS:
+        DEPTH: 50
+        WIDTH_MULTIPLIER: 1
+        NORM: BatchNorm    # BatchNorm | LayerNorm | GroupNorm
+        # If using GroupNorm, this sets number of groups. Recommend 32 as a
+        # naive suggestion. GroupNorm only available for ResNe(X)t.
+        GROUPNORM_GROUPS: 32
+        # Use weight-standardized convolutions
+        STANDARDIZE_CONVOLUTIONS: False
+        GROUPS: 1
+        ZERO_INIT_RESIDUAL: False
+        WIDTH_PER_GROUP: 64
+        # Colorization model uses stride=1 for last layer to retain higher spatial resolution
+        # for the pixel-wise task. Torchvision default is stride=2 and all other models
+        # use this so we set the default as 2.
+        LAYER4_STRIDE: 2
 
-        # ------------------------------------------------------------- #
-        # EfficientNet params
-        # ------------------------------------------------------------- #
-        # follow classy vision for efficientNet settings
-        EFFICIENT_NETS: {}
+      # ------------------------------------------------------------- #
+      # EfficientNet params
+      # ------------------------------------------------------------- #
+      # follow classy vision for efficientNet settings
+      EFFICIENT_NETS: {}
 
-        # ------------------------------------------------------------- #
-        # RegNet params
-        # ------------------------------------------------------------- #
-        REGNET: {}
+      # ------------------------------------------------------------- #
+      # RegNet params
+      # ------------------------------------------------------------- #
+      REGNET: {}
+
+      # ------------------------------------------------------------- #
+      # Vision Transformer/DeiT params. Using a name will
+      # override/ignore all other VISION_TRANSFORMERS parameters. Named
+      # options include vit_b_32, vit_b_16, vit_l_32, vit_l_16, vit_h_14.
+      # Using
+      # ------------------------------------------------------------- #
+      VISION_TRANSFORMERS:
+        name:
+        IMAGE_SIZE: 224
+        PATCH_SIZE: 16
+        NUM_LAYERS: 12
+        NUM_HEADS: 12
+        HIDDEN_DIM: 768
+        MLP_DIM: 3072
+        # MLP and projection layer dropout rate
+        DROPOUT_RATE: 0
+        # Attention dropout rate
+        ATTENTION_DROPOUT_RATE: 0
+        # Use the token for classification. Currently no alternatives
+        # supported
+        CLASSIFIER: token
+        # Stochastic depth dropout rate. Turning on stochastic depth and
+        # using aggressive augmentation is essentially the difference
+        # between a DeiT and a ViT.
+        DROP_PATH_RATE: 0
+        QKV_BIAS: False # Bias for QKV in attention layers.
+        QK_SCALE: False # Scale
+
+      # ------------------------------------------------------------- #
+      # Parameters unique to the ConViT and not used for standard vision
+      # transformers
+      # -------------------------------------------------------------
+      CONVIT:
+        # Notes on ConViT (D'Ascoli et al., TODO insert arxiv link):
+        # Ideally, the number of heads should be a square.
+        # The paper used: 4, 9, or 16 heads;
+        # HIDDEN_DIM = 64 * # NUM_HEADS, so 256, 576, or 1024, respectively;
+        # MLP_DIM = 4 * HIDDEN_DIM, so 1024, 2304, or 4096, respectively.
+        #
+        # ConViT Params:
+        # Number of gated positional self-attention
+        # layers. These are self-attention layers that have separate
+        # positional and content-based attention components, allowing them
+        # to function as convolutional layers if initialized to be local
+        # (see USE_LOCAL_INIT below). They're what make ConViTs ConViTs!
+        # n_gpsa_layers out of NUM_LAYERS will be gated positional self
+        # attention layers.
+        N_GPSA_LAYERS: 10
+        # Whether to add class token to gpsa layers
+        CLASS_TOKEN_IN_LOCAL_LAYERS: False
+        # Determines how much the positional attention is focused on the
+        # patch of maximal attention. "Alpha" in the paper. Equivalent to
+        # the temperature of positional attention softmax.
+        LOCALITY_STRENGTH: 1.
+        # Dimensionality of the relative positional embeddings
+        LOCALITY_DIM: 10
+        # Whether to initialize the positional component of the GPSAs
+        # locally. This is necessary for them to be convolutional.
+        USE_LOCAL_INIT: True
+
     # ----------------------------------------------------------------------------------- #
     # MODEL HEAD
     # ----------------------------------------------------------------------------------- #
@@ -394,12 +723,9 @@ config:
       AMP_ARGS: {"opt_level": "O1"}
       # we support pytorch amp as well which is availale in pytorch>=1.6.
       AMP_TYPE: "apex"  # apex | pytorch
-    MODEL_COMPLEXITY:
-      # set this to True if you want to compute #flops, #params, #activations in your model.
-      COMPUTE_COMPLEXITY: False
-      # the dummy input shape passed to the model to compute the complexity. Only forward pass
-      # is done for complexity calculation.
-      INPUT_SHAPE: [3, 224, 224]
+    # ----------------------------------------------------------------------------------- #
+    # MODEL WEIGHTS INIT from a weights file
+    # ----------------------------------------------------------------------------------- #
     # parameters for initializing a model from a pre-trained model file
     WEIGHTS_INIT:
       # path to the .torch weights files
@@ -450,7 +776,16 @@ config:
       ignore_index: -1
 
     # ----------------------------------------------------------------------------------- #
-    # Cross-Entropy Loss for multiple input and same target
+    # Cross-Entropy Loss for multiple outputs and same target. For a single
+    # output, this is equivalent to the cross-entropy loss. For multiple
+    # outputs, this computes the sum of the cross-entropy losses for each
+    # tensor in the list against the target. Can also accomodate target
+    # vectors in addition to single integer targets, for example when using
+    # label smoothing. Note that the internally, cross_entropy_multiple_output_single_target
+    # determines whether each sample is associated with a single target or
+    # whether each sample is associated with a target vector, and uses vanilla
+    # CrossEntropyLoss for the single-target case and a custom cross entropy
+    # function for the multi-target case.
     # ----------------------------------------------------------------------------------- #
     cross_entropy_multiple_output_single_target:
       weight: null
@@ -534,7 +869,7 @@ config:
       num_prototypes: [3000]        # automatically inferred from model HEAD settings
       temp_hard_assignment_iters: 0
       # for dumping the debugging info in case loss becomes NaN
-      output_dir: ""                # automatically inferred and set to checkpoint dir
+      output_dir: "."               # automatically inferred and set to checkpoint dir
       queue:
         queue_length: 0             # automatically adjusted to ensure queue_length % global batch size = 0
         start_iter: 0
@@ -559,6 +894,20 @@ config:
         queue_length: 0       # automatically adjusted to ensure queue_length % global batch size = 0
         start_iter: 0
         local_queue_length: 0 # automatically inferred to queue_length // world_size
+
+    # ----------------------------------------------------------------------------------- #
+    # DINO LOSS (Specific to DINO https://arxiv.org/abs/2104.14294)
+    # ----------------------------------------------------------------------------------- #
+    dino_loss:
+      momentum: 0.996
+      student_temp: 0.1
+      teacher_temp_min: 0.04
+      teacher_temp_max: 0.07
+      teacher_temp_warmup_iters: 37500 # 30 epochs
+      crops_for_teacher: [0, 1]
+      ema_center: 0.9
+      normalize_last_layer: true
+      output_dim: 65536  # automatically inferred from model HEAD settings
 
     # -----------------------------------------------------------------------------------#
     # DeepCluster V2 LOSS (baselines in SwAV https://arxiv.org/abs/2006.09882)
@@ -585,11 +934,21 @@ config:
       momentum: 0.999
       temperature: 0.2
 
+    # ----------------------------------------------------------------------------------- #
+    #  Barlow Twins Loss (https://arxiv.org/abs/2103.03230v1)
+    # ----------------------------------------------------------------------------------- #
+    barlow_twins_loss:
+      lambda_: 0.0051
+      scale_loss: 0.024
+      embedding_dim: 8192
+
   # ----------------------------------------------------------------------------------- #
   # OPTIMIZER
   # ----------------------------------------------------------------------------------- #
   OPTIMIZER:
     name: "sgd"
+    # whether to shard optimizer state as per ZeRO https://arxiv.org/abs/1910.02054
+    use_zero: False
     use_larc: False  # supported for SGD only for now
     larc_config:
       clip: False
@@ -600,10 +959,17 @@ config:
     nesterov: False
     # for how many epochs to do training. only counts training epochs.
     num_epochs: 90
+    betas: [.9, .999] # for Adam/AdamW
     # whether to regularize batch norm. if set to False, weight decay of batch norm params is 0.
     regularize_bn: False
     # whether to regularize bias parameter. if set to False, weight decay of bias params is 0.
     regularize_bias: True
+    # Parameters to omit from regularization. Any named parameter whose name
+    # contains any of these strings will be omitted from regularization.
+    # For example, we don't want to regularize the class token or position
+    # embeddings in the vision transformer, so we pass:
+    # non_regularized_parameters: ['class_token', 'pos_embedding']
+    non_regularized_parameters: []
     # we support using a different LR and weight decay for head and trunk.
     # one needs to set the flag "use_different_values: True" in order to enable
     # this functionality. We use the same type of param scheduler for the trunk and head
@@ -631,6 +997,8 @@ config:
           # is used to determine how to scale the base learning rate value.
           # scaled_lr = ((batchsize_per_gpu * world_size) * base_value ) / base_lr_batch_size
           base_lr_batch_size: 256
+          # scaling_type can be set to "sqrt" to reduce the impact of scaling on the base value
+          scaling_type: "linear"
         name: "multistep"
         update_interval: "epoch"
         # values indicate the step LR learning rate values. Instead of taking gamma, we
@@ -657,6 +1025,7 @@ config:
           auto_scale: False
           base_value: 0.1
           base_lr_batch_size: 256
+          scaling_type: "linear"
         name: "multistep"
         update_interval: "epoch"
         values: [0.1, 0.01, 0.001]
@@ -672,6 +1041,26 @@ config:
         end_value: 0.0
         # =====constant learning rate specific =======
         value: 0.1
+    # Under certain cases, we want to use a single param_group that consists of
+    # the parameters returned from model.parameters() list. For example, when a model
+    # is wrapped by FSDP with flattening, individual parameters inside the model are
+    # replaced with a flattened parameter. Therefore, this option is needed in that case.
+    construct_single_param_group_only: False
+
+  # ----------------------------------------------------------------------------------- #
+  # Options specific to the "extract_feature" engine
+  # ----------------------------------------------------------------------------------- #
+  EXTRACT_FEATURES:
+    # Path where to save the features: if empty, the checkpoint folder
+    # will be used as location where to save the features
+    OUTPUT_DIR: ""
+    # How many features to accumulate before written them on disk:
+    # - if set to 0, the extract_engine engine will dump features
+    #   as soon as they are computed (accumulate none in memory)
+    # - if set to -1, the extract_engine engine will dump features
+    #   at the very end (accumulate all in memory)
+    CHUNK_THRESHOLD: 0
+
   # ----------------------------------------------------------------------------------- #
   # CLUSTERFIT APPROACH (https://arxiv.org/abs/1912.03330)
   # ----------------------------------------------------------------------------------- #
@@ -703,7 +1092,7 @@ config:
   # ----------------------------------------------------------------------------------- #
   CHECKPOINT:
     DIR: "."
-    # for the checkpoinint, we can append the RUN_ID if we want
+    # for the checkpoint, we can append the RUN_ID if we want
     APPEND_DISTR_RUN_ID: False
     # what is the checkpointing backend. VISSL supports disk backend. If user wants to
     # add more backend like AWS etc., they can do so.
@@ -765,7 +1154,7 @@ config:
     # number of machines to use in training. Each machine can have many gpus. NODES count
     # number of unique hosts.
     NUM_NODES: 1
-    # set this to the number of gpus per machine. This ensrures that each gpu of the
+    # set this to the number of gpus per machine. This ensures that each gpu of the
     # node has a process attached to it.
     NUM_PROC_PER_NODE: 8
     # this could be: tcp | env | file or any other pytorch supported methods
@@ -781,6 +1170,36 @@ config:
     # activation checkpointing and sometimes saving the memory from the pytorch gradient
     # buckets.
     MANUAL_GRADIENT_REDUCTION: False
+
+  # ----------------------------------------------------------------------------------- #
+  # DISTRIBUTED TRAINING ON SLURM: Additional options for SLURM node allocation
+  # (options like number of nodes and number of GPUs by node are taken from DISTRIBUTED)
+  # ----------------------------------------------------------------------------------- #
+  SLURM:
+    # Whether or not to run the job on SLURM
+    USE_SLURM: false
+    # Name of the job on SLURM
+    NAME: "vissl"
+    # Comment of the job on SLURM
+    COMMENT: "vissl job"
+    # Partition of SLURM on which to run the job. This is a required field if using SLURM.
+    PARTITION: ""
+    # Where the logs produced by the SLURM jobs will be output
+    LOG_FOLDER: "."
+    # Maximum number of hours / minutes needed by the job to complete. Above this limit, the job might be pre-empted.
+    TIME_HOURS: 72
+    TIME_MINUTES: 0
+    # Additional constraints on the hardware of the nodes to allocate (example 'volta' to select a volta GPU)
+    CONSTRAINT: ""
+    # GB of RAM memory to allocate for each node
+    MEM_GB: 250
+    # TCP port on which the workers will synchronize themselves with torch distributed
+    PORT_ID: 40050
+    # Number of CPUs per GPUs to request on the cluster.
+    NUM_CPU_PER_PROC: 8
+    # Any other parameters for slurm (e.g. account, hint, distribution, etc.,) as dictated by submitit.
+    # Please see https://github.com/facebookincubator/submitit/issues/23#issuecomment-695217824.
+    ADDITIONAL_PARAMETERS: {}
 
   # ----------------------------------------------------------------------------------- #
   # SVM (benchmark)
@@ -833,16 +1252,34 @@ config:
     EVAL_DATASET_NAME: "Paris"
     # Path to the compute_ap binary to evaluate Oxford / Paris
     EVAL_BINARY_PATH: ""
-    # Path to a temporary directory to store features and scores
-    TEMP_DIR: "/tmp/instance_retrieval/"
+    # Whether or not to save the retrieval ranking scores (metrics, rankings, similarity scores)
+    SAVE_RETRIEVAL_RANKINGS_SCORES: True
+    # Whether or not to save the features that were extracted
+    SAVE_FEATURES: False
     # Whether to apply PCA/whitening or not
-    SHOULD_TRAIN_PCA_OR_WHITENING: True
+    TRAIN_PCA_WHITENING: True
     # gem | rmac | l2_norm
     FEATS_PROCESSING_TYPE: ""
-    # valid only for GeM pooling of features
+    # valid only for GeM pooling of features. Note that GEM_POOL_POWER=1 equates to average pooling.
     GEM_POOL_POWER: 4.0
     # valid only if we are training whitening on the whitening dataset
     WHITEN_IMG_LIST: ""
+    # Sets data limits for the number of training, query, and database samples.
+    DEBUG_MODE: False
+    # Number of training samples to use. -1 uses all the samples in the dataset.
+    NUM_TRAINING_SAMPLES: -1
+    # Number of query samples to use. -1 uses all the samples in the dataset.
+    NUM_QUERY_SAMPLES: -1
+    # Number of database samples to use. -1 uses all the samples in the dataset.
+    NUM_DATABASE_SAMPLES: -1
+    # Whether or not to crop the query images with the given region of interests --
+    # Relevant for Oxford, Paris, ROxford, and RParis datasets.
+    # Our experiments with RN-50/rmac show that ROI cropping degrades performance.
+    CROP_QUERY_ROI: False
+    # Whether or not to apply L2 norm after the features have been post-processed.
+    # Normalization is heavily recommended based on experiments run.
+    NORMALIZE_FEATURES: True
+
 
   # ----------------------------------------------------------------------------------- #
   # K-NEAREST NEIGHBOR (benchmark)
@@ -854,22 +1291,3 @@ config:
     TOPK: 200
     # if the features should be l2 normalized, set this to True
     L2_NORM_FEATS: False
-
-  # ----------------------------------------------------------------------------------- #
-  # TENSORBOARD (visualization)
-  # ----------------------------------------------------------------------------------- #
-  TENSORBOARD_SETUP:
-    # whether to use tensorboard for the visualization
-    USE_TENSORBOARD: False
-    # log directory for tensorboard events
-    LOG_DIR: "."
-    EXPERIMENT_LOG_DIR: "tensorboard"
-    # flush logs every n minutes
-    FLUSH_EVERY_N_MIN: 5
-    # whether to log the model parameters to tensorboard
-    LOG_PARAMS: True
-    # whether to log the model parameters gradients to tensorboard
-    LOG_PARAMS_GRADIENTS: True
-    # if we want to log the model parameters every few iterations, set the iteration
-    # frequency. -1 means the params will be logged only at the end of epochs.
-    LOG_PARAMS_EVERY_N_ITERS: 310
