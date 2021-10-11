@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-from vissl.meters.recall_list_meter import RecallListMeter
+from vissl.meters.recall_at_k_list_meter import RecallListMeter
 from tests.generic.meter_test_utils import ClassificationMeterTest
 
 from classy_vision.meters import build_meter
@@ -14,7 +14,7 @@ import vissl.meters  # noqa: F401,F811
 
 class TestRecallListMeter(ClassificationMeterTest):
     def test_recall_meter_registry(self):
-        meter = build_meter({'name': 'recall_list_meter', 'num_meters': 1, 'topk_values': [
+        meter = build_meter({'name': 'recall_at_k_list_meter', 'num_meters': 1, 'topk_values': [
                             1, 3], 'meter_names': []})
         self.assertTrue(isinstance(meter, RecallListMeter))
 

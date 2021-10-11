@@ -32,7 +32,7 @@ config:
       COPY_TO_LOCAL_DISK: False
       COPY_DESTINATION_DIR: /tmp/stanford_cars/
   METERS:
-    name: accuracy_list_meter
+    names: ["accuracy_list_meter"]
     accuracy_list_meter:
       num_meters: 2
       topk_values: [1]

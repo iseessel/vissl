@@ -12,7 +12,7 @@ from classy_vision.meters import PrecisionAtKMeter, ClassyMeter, register_meter
 from vissl.config import AttrDict
 
 
-@register_meter("precision_list_meter")
+@register_meter("precision_at_k_list_meter")
 class PrecisionListMeter(ClassyMeter):
     """
     Meter to calculate top-k precision for single label image classification task.
@@ -60,7 +60,7 @@ class PrecisionListMeter(ClassyMeter):
         """
         Name of the meter
         """
-        return "precision_list_meter"
+        return "precision_at_k_list_meter"
 
     @property
     def value(self):
@@ -76,16 +76,18 @@ class PrecisionListMeter(ClassyMeter):
             val_dict[ind] = {}
             val_dict[ind]["val"] = meter_val
             val_dict[ind]["sample_count"] = sample_count
+
         # also create dict w.r.t top-k
         output_dict = {}
         for k in self._topk_values:
-            top_k_str = f"top_{k}"
+            top_k_str = f"precision_top_{k}"
             output_dict[top_k_str] = {}
             for ind in range(len(self._meters)):
                 meter_name = (
                     self._meter_names[ind] if (len(self._meter_names) > 0) else ind
                 )
-                val = 100.0 * round(float(val_dict[ind]["val"][top_k_str]), 6)
+                val = 100.0 * round(float(val_dict[ind]["val"][f"top_{k}"]), 6)
+                # val = 1000
                 # we could have several meters with the same name. We append the result
                 # to the dict.
                 if meter_name not in output_dict[top_k_str]:
@@ -128,7 +130,7 @@ class PrecisionListMeter(ClassyMeter):
         value = self.value
         # convert top_k list into csv format for easy copy pasting
         for k in self._topk_values:
-            top_k_str = f"top_{k}"
+            top_k_str = f"precision_top_{k}"
             hr_format = ["%.1f" % (100 * x) for x in value[top_k_str]]
             value[top_k_str] = ",".join(hr_format)
 

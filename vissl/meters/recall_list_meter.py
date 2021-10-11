@@ -12,7 +12,7 @@ from classy_vision.meters import RecallAtKMeter, ClassyMeter, register_meter
 from vissl.config import AttrDict
 
 
-@register_meter("recall_list_meter")
+@register_meter("recall_at_k_list_meter")
 class RecallListMeter(ClassyMeter):
     """
     Meter to calculate top-k recall for single label image classification task.
@@ -38,6 +38,7 @@ class RecallListMeter(ClassyMeter):
         ], "each value in topk_values must be >= 1"
         self._num_meters = num_meters
         self._topk_values = topk_values
+
         self._meters = [
             RecallAtKMeter(self._topk_values) for _ in range(self._num_meters)
         ]
@@ -60,7 +61,7 @@ class RecallListMeter(ClassyMeter):
         """
         Name of the meter
         """
-        return "recall_list_meter"
+        return "recall_at_k_list_meter"
 
     @property
     def value(self):
@@ -77,13 +78,13 @@ class RecallListMeter(ClassyMeter):
         # also create dict w.r.t top-k
         output_dict = {}
         for k in self._topk_values:
-            top_k_str = f"top_{k}"
+            top_k_str = f"recall_top_{k}"
             output_dict[top_k_str] = {}
             for ind in range(len(self._meters)):
                 meter_name = (
                     self._meter_names[ind] if (len(self._meter_names) > 0) else ind
                 )
-                val = 100.0 * round(float(val_dict[ind]["val"][top_k_str]), 6)
+                val = 100.0 * round(float(val_dict[ind]["val"][f"top_{k}"]), 6)
                 # we could have several meters with the same name. We append the result
                 # to the dict.
                 if meter_name not in output_dict[top_k_str]:
@@ -126,7 +127,7 @@ class RecallListMeter(ClassyMeter):
         value = self.value
         # convert top_k list into csv format for easy copy pasting
         for k in self._topk_values:
-            top_k_str = f"top_{k}"
+            top_k_str = f"recall_top_{k}"
             hr_format = ["%.1f" % (100 * x) for x in value[top_k_str]]
             value[top_k_str] = ",".join(hr_format)
 

@@ -13,7 +13,7 @@ Examples:
 .. code-block:: yaml
 
     METERS:
-      name: accuracy_list_meter
+      names: ["accuracy_list_meter"]
       accuracy_list_meter:
         num_meters: 1          # number of outputs model has. also auto inferred
         topk_values: [1, 5]    # for each meter, what topk are computed.

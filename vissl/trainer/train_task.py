@@ -402,18 +402,21 @@ class SelfSupervisionTask(ClassificationTask):
         """
         Returns meters for task.
         """
-        meter_names = self.config["METERS"].get("names", "")
+        meter_names = self.config["METERS"].get("names", [])
+
         if not meter_names:
             meter_name = self.config["METERS"].get("name", "")
+
             if not meter_name:
                 return []
             meter_names = [meter_name]
-            
+
         meters = []
         for meter_name in meter_names:
             meter_params = self.config["METERS"][meter_name]
             meter_config = {"name": meter_name, **meter_params}
             meters.append(build_meter(meter_config))
+
         return meters
 
     def _restore_model_weights(self, model):

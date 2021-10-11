@@ -5,7 +5,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
-from vissl.meters.precision_list_meter import PrecisionListMeter
+from vissl.meters.precision_at_k_list_meter import PrecisionListMeter
 from tests.generic.meter_test_utils import ClassificationMeterTest
 
 from classy_vision.meters import build_meter
@@ -14,7 +14,7 @@ import vissl.meters  # noqa: F401,F811
 
 class TestPrecisionListMeter(ClassificationMeterTest):
     def test_precision_meter_registry(self):
-        meter = build_meter({'name': 'precision_list_meter',
+        meter = build_meter({'name': 'precision_at_k_list_meter',
                             'num_meters': 1, 'topk_values': [1, 3], 'meter_names': []})
         self.assertTrue(isinstance(meter, PrecisionListMeter))
 

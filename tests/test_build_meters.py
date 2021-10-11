@@ -21,13 +21,13 @@ class TestBuildMeters(unittest.TestCase):
                 "meter_names": [],
             },
             {
-                "name": "precision_list_meter",
+                "name": "precision_at_k_list_meter",
                 "num_meters": 1,
                 "topk_values": [1, 3],
                 "meter_names": [],
             },
             {
-                "name": "recall_list_meter",
+                "name": "recall_at_k_list_meter",
                 "num_meters": 1,
                 "topk_values": [1, 3],
                 "meter_names": [],
@@ -46,13 +46,13 @@ class TestBuildMeters(unittest.TestCase):
                 "meter_names": [],
             },
             {
-                "name": "precision_list_meter",
+                "name": "precision_at_k_list_meter",
                 "num_meters": 1,
                 "topk_values": [1, 3],
                 "meter_names": [],
             },
             {
-                "name": "recall_list_meter",
+                "name": "recall_at_k_list_meter",
                 "num_meters": 1,
                 "topk_values": [1, 3],
                 "meter_names": [],

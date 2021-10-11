@@ -413,7 +413,8 @@ config:
   # multiple meters are calculated for multiple model outputs (for example: multiple
   # layers output) and metric is calculated on the same input target.
   METERS:
-    name: ""
+    # names of meters, corresponds to the string used in @register_meter method.
+    names: []
     # whether to calculate the meter during training as well. Sometimes, if the training
     # data size is too big, it could be hard to compute the meter on training set. Hence
     # we might want to disable it.
@@ -431,7 +432,7 @@ config:
       # feature evaluation workflows, meter name is automatically inferred.
       meter_names: []
     # calculate top-k meter on single target multiple ouput setting
-    precision_list_meter:
+    precision_at_k_list_meter:
       # number of precision meters. In cases like linear evaluation of feature, we perform
       # evaluation of several layers and there's a separate meter for each layer.
       # num_meters basically specifices number of meters.
@@ -441,9 +442,9 @@ config:
       topk_values: [1]
       # names of the meter. Useful in cases where we have several meters. For the linear
       # feature evaluation workflows, meter name is automatically inferred.
-      meter_names: []    
+      meter_names: []
     # calculate top-k meter on single target multiple ouput setting
-    recall_list_meter:
+    recall_at_k_list_meter:
       # number of recall meters. In cases like linear evaluation of feature, we perform
       # evaluation of several layers and there's a separate meter for each layer.
       # num_meters basically specifices number of meters.
