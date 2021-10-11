@@ -106,7 +106,7 @@ config:
         update_interval: step
         lengths: [0.017, 0.983]
   METERS:
-    name: accuracy_list_meter
+    names: ["accuracy_list_meter"]
     accuracy_list_meter:
       num_meters: 1
       topk_values: [1, 5]

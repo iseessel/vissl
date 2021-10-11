@@ -79,13 +79,14 @@ class AccuracyListMeter(ClassyMeter):
         # also create dict w.r.t top-k
         output_dict = {}
         for k in self._topk_values:
-            top_k_str = f"top_{k}"
+            top_k_str = f"accuracy_top_{k}"
             output_dict[top_k_str] = {}
             for ind in range(len(self._meters)):
                 meter_name = (
                     self._meter_names[ind] if (len(self._meter_names) > 0) else ind
                 )
-                val = 100.0 * round(float(val_dict[ind]["val"][top_k_str]), 6)
+
+                val = 100.0 * round(float(val_dict[ind]["val"][f"top_{k}"]), 6)
                 # we could have several meters with the same name. We append the result
                 # to the dict.
                 if meter_name not in output_dict[top_k_str]:
@@ -128,7 +129,7 @@ class AccuracyListMeter(ClassyMeter):
         value = self.value
         # convert top_k list into csv format for easy copy pasting
         for k in self._topk_values:
-            top_k_str = f"top_{k}"
+            top_k_str = f"accuracy_top_{k}"
             hr_format = ["%.1f" % (100 * x) for x in value[top_k_str]]
             value[top_k_str] = ",".join(hr_format)
 
